@@ -72,11 +72,12 @@ FILIPINO_TL = "tl"
 
 qtip_style = """
     QToolTip {
-        border: 1px solid black;
-        padding: 5px;
-        font-size: 2em;
-        background-color: #303030;
-        color: white;
+        border: 1px solid rgba(100,100,100,0.6);
+        padding: 4px 7px;
+        font-size: 12px;
+        background-color: #1c1c1e;
+        color: #f5f5f7;
+        border-radius: 4px;
     }
 """
 

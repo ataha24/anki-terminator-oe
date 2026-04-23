@@ -6,9 +6,10 @@ import random
 import time
 from aqt.utils import openLink
 from aqt import (
-QAction, QCheckBox, QClipboard, QComboBox, QDockWidget, QFontMetrics, QGraphicsOpacityEffect,
+QAction, QCheckBox, QClipboard, QColor, QComboBox, QDockWidget, QFontMetrics,
+QGraphicsOpacityEffect,
 QKeySequence, QLabel, QLineEdit, QMenu, QMimeData,
-QPixmap, QPushButton,  QSize, QTimer, QToolBar, QUrl, QVBoxLayout,
+QPainter, QPen, QPixmap, QPushButton, QRectF, QSize, QTimer, QToolBar, QUrl, QVBoxLayout,
 QWebEnginePage,
 QWebEngineProfile, QWebEngineSettings, gui_hooks,
 QWebEngineView, QWidget, Qt, mw)
@@ -46,6 +47,112 @@ from .shigetr import shige_tr, qtip_style
 
 from .context_menu.add_fields import add_context_menu
 from .context_menu.get_image import add_image_context_menu
+
+# ── Per-AI accent colours ─────────────────────────────────────────────────────
+
+_AI_ACCENT = {
+    "Chat_GPT":      "#10A37F",
+    "Google_Bard":   "#4285F4",
+    "Bing_Chat":     "#0078D4",
+    "Claude":        "#D97757",
+    "perplexity":    "#20B2AA",
+    "DeepSeek":      "#4D6BFE",
+    "Grok_AI":       "#1D9BF0",
+    "Duck_AI":       "#DE5833",
+    "Open_Evidence": "#1A6EFF",
+    "Custom_Ai":     "#888888",
+}
+
+def _hex_to_rgb(h: str):
+    h = h.lstrip("#")
+    return int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+
+def _darken(h: str, f: float = 0.80) -> str:
+    r, g, b = _hex_to_rgb(h)
+    return f"#{int(r*f):02X}{int(g*f):02X}{int(b*f):02X}"
+
+_AI_SHORT_NAMES = {
+    "Chat_GPT":      "GPT",
+    "Google_Bard":   "Gemini",
+    "Bing_Chat":     "Bing",
+    "Claude":        "Claude",
+    "perplexity":    "Perplx",
+    "DeepSeek":      "DeepSeek",
+    "Grok_AI":       "Grok",
+    "Duck_AI":       "DDG",
+    "Open_Evidence": "OE",
+    "Custom_Ai":     "Custom",
+}
+
+
+class _SpinnerWidget(QWidget):
+    """Animated loading spinner using QPainter — replaces the static NowLoading.png."""
+
+    def __init__(self, accent="#10A37F", ai_name="Loading…", parent=None):
+        super().__init__(parent)
+        self._angle = 0
+        self._accent = accent
+        self._ai_name = ai_name
+        self._timer = QTimer(self)
+        self._timer.timeout.connect(self._tick)
+
+    def set_accent(self, accent: str, ai_name: str = ""):
+        self._accent = accent
+        if ai_name:
+            self._ai_name = ai_name
+        self.update()
+
+    def start(self):
+        self._timer.start(16)
+
+    def stop(self):
+        self._timer.stop()
+        self.update()
+
+    def _tick(self):
+        self._angle = (self._angle + 5) % 360
+        self.update()
+
+    def paintEvent(self, event):
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        w, h = float(self.width()), float(self.height())
+        cx, cy = w / 2.0, h / 2.0
+
+        sz = max(18.0, min(w, h) * 0.11)
+        sz = min(sz, 30.0)
+        ring_top = cy - sz - 14.0
+        rect = QRectF(cx - sz, ring_top, sz * 2.0, sz * 2.0)
+
+        r, g, b = _hex_to_rgb(self._accent)
+
+        # Track ring (faint)
+        pen_track = QPen(QColor(r, g, b, 45))
+        pen_track.setWidth(3)
+        pen_track.setCapStyle(Qt.PenCapStyle.RoundCap)
+        p.setPen(pen_track)
+        p.drawEllipse(rect)
+
+        # Spinning arc
+        pen_arc = QPen(QColor(self._accent))
+        pen_arc.setWidth(3)
+        pen_arc.setCapStyle(Qt.PenCapStyle.RoundCap)
+        p.setPen(pen_arc)
+        p.drawArc(rect, int((90 - self._angle) * 16), int(100 * 16))
+
+        # AI name label below the ring
+        font = p.font()
+        font.setPointSize(10)
+        p.setFont(font)
+        p.setPen(QColor(r, g, b, 170))
+        label_rect = QRectF(0.0, ring_top + sz * 2.0 + 12.0, w, 22.0)
+        p.drawText(
+            label_rect,
+            Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter,
+            self._ai_name,
+        )
+        p.end()
+
 
 # ── Open Evidence integration ────────────────────────────────────────────────
 
@@ -426,6 +533,11 @@ jgs    \  `-"`      `"-`   /
         self.setWindowTitle(name)
         self.setMinimumSize(QSize(300, 300))
 
+        _cfg_init = mw.addonManager.getConfig(__name__)
+        self._accent_color = _AI_ACCENT.get(
+            _cfg_init.get("now_AI_type", "Chat_GPT"), "#10A37F"
+        )
+
         self.webview = CustomWebEngineView(self)
         # self.webview = QWebEngineView()
         # self.webview = AnkiWebView()
@@ -452,17 +564,20 @@ jgs    \  `-"`      `"-`   /
 
 
         # ----------------------------------
+        _ai_display_name = self._AI_DISPLAY_NAMES.get(
+            _cfg_init.get("now_AI_type", "Chat_GPT"), "Loading…")
         self.grey_widget = QWidget()
-        # self.grey_widget.setStyleSheet("background-color: grey;")
-        addon_path = dirname(__file__)
-        icon_path = join(addon_path, NOW_LOADING)
-        pixmap = QPixmap(icon_path)
+        self._spinner = _SpinnerWidget(self._accent_color, _ai_display_name, self.grey_widget)
+        self._spinner.start()
+        # label kept for ShowAnswer image overlay (shown instead of spinner)
         self.label = QLabel(self.grey_widget)
-        self.label.setPixmap(pixmap)
-        self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout = QVBoxLayout(self.grey_widget)
-        layout.addWidget(self.label)
-        self.grey_widget.setLayout(layout)
+        self.label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignBottom)
+        self.label.hide()
+        layout_gw = QVBoxLayout(self.grey_widget)
+        layout_gw.setContentsMargins(0, 0, 0, 0)
+        layout_gw.addWidget(self._spinner)
+        layout_gw.addWidget(self.label)
+        self.grey_widget.setLayout(layout_gw)
         # ----------------------------------
 
         self.webpage = CustomWebEnginePage(self.cookie_profile, self.webview) # Cookie monster
@@ -488,12 +603,17 @@ jgs    \  `-"`      `"-`   /
         self.webview.load(QUrl(url))
 
         layout = QVBoxLayout(self)
+        layout.setSpacing(0)
+        self._accent_bar = QWidget()
+        self._accent_bar.setFixedHeight(3)
+        self._accent_bar.setStyleSheet(f"background: {self._accent_color};")
+        layout.addWidget(self._accent_bar)
         self.last_text_toolbar(layout)
         self.make_menu_button(layout)
 
         layout.addWidget(self.webview)
         layout.addWidget(self.grey_widget)
-        layout.setContentsMargins(1, 1, 1, 1)
+        layout.setContentsMargins(0, 0, 0, 0)
 
         self.get_field_text()
 
@@ -745,6 +865,10 @@ setInterval(findAndClickButton, 2000);
         pixmap = QPixmap(icon_path)
         self.label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignBottom)
         self.label.setPixmap(pixmap)
+        if hasattr(self, '_spinner'):
+            self._spinner.stop()
+            self._spinner.hide()
+        self.label.show()
 
     def load_url(self):
         config = mw.addonManager.getConfig(__name__)
@@ -770,10 +894,16 @@ setInterval(findAndClickButton, 2000);
         self.show_webview()
 
     def hide_webview(self):
+        if hasattr(self, '_spinner'):
+            self.label.hide()
+            self._spinner.show()
+            self._spinner.start()
         self.grey_widget.setVisible(True)
         self.webview.setVisible(False)
 
     def show_webview(self):
+        if hasattr(self, '_spinner'):
+            self._spinner.stop()
         self.grey_widget.setVisible(False)
         self.webview.setVisible(True)
 
@@ -790,51 +920,53 @@ setInterval(findAndClickButton, 2000);
 
     def last_text_toolbar(self, layout: QVBoxLayout):
         self.last_text_bar = QToolBar()
-        self.last_text_bar.setStyleSheet("QToolBar { margin: 1px; padding: 1px; }")
+        self.last_text_bar.setStyleSheet(
+            "QToolBar { margin: 0px; padding: 2px; spacing: 2px; "
+            "border: none; border-bottom: 1px solid rgba(128,128,128,0.2); }"
+        )
         layout.addWidget(self.last_text_bar)
 
-        self.make_button(
-            "AI", lambda :self.change_AI_type(), self.last_text_bar, True,
-            tooltip_text="Quick Change AI")
+        _cfg_btn = mw.addonManager.getConfig(__name__)
+        _ai_short = _AI_SHORT_NAMES.get(_cfg_btn.get("now_AI_type", "Chat_GPT"), "AI")
+        self._ai_btn = self.make_button(
+            _ai_short, lambda: self.change_AI_type(), self.last_text_bar, True,
+            tooltip_text="Quick Change AI", _accent_btn=True)
 
         config = mw.addonManager.getConfig(__name__)
 
+        _cb_style = "QCheckBox { margin: 1px; spacing: 4px; }" + qtip_style
         self.checkbox = QCheckBox()
-        self.checkbox .setStyleSheet("QCheckBox { margin: 1px; padding: 1px; }")
         self.checkbox.stateChanged.connect(self.checkbox_state_changed)
         self.checkbox.setChecked(config["submit_text"])
-        self.checkbox.setStyleSheet(qtip_style)
+        self.checkbox.setStyleSheet(_cb_style)
         self.checkbox.setToolTip(shige_tr.check_box_tooltip)
         self.last_text_bar.addWidget(self.checkbox)
 
-
-        # auto_read_aloud ﾁｪｯｸﾎﾞｯｸｽの追加
         self.auto_read_aloud_checkbox = QCheckBox()
-        self.auto_read_aloud_checkbox.setStyleSheet("QCheckBox { margin: 1px; padding: 1px; }")
         self.auto_read_aloud_checkbox.stateChanged.connect(self.auto_read_aloud_checkbox_state_changed)
         self.auto_read_aloud_checkbox.setChecked(config.get("auto_read_aloud", True))
-        self.auto_read_aloud_checkbox.setStyleSheet(qtip_style)
+        self.auto_read_aloud_checkbox.setStyleSheet(_cb_style)
         self.auto_read_aloud_checkbox.setToolTip("Auto-read aloud (for ChatGPT only)")
         self.last_text_bar.addWidget(self.auto_read_aloud_checkbox)
-        # ------------------------------
 
-
-
+        acc = self._accent_color
+        r, g, b = _hex_to_rgb(acc)
         self.last_text_edit = QLineEdit(self.last_text)
-        self.last_text_edit.setStyleSheet("QLineEdit { margin: 1px; padding: 1px; }")
+        self.last_text_edit.setStyleSheet(
+            f"QLineEdit {{ border: 1px solid rgba(128,128,128,0.35); border-radius: 4px; "
+            f"padding: 2px 5px; font-size: 12px; }}"
+            f"QLineEdit:focus {{ border-color: rgba({r},{g},{b},0.8); }}"
+        )
         self.last_text_edit.textChanged.connect(self.update_last_text)
         self.last_text_bar.addWidget(self.last_text_edit)
 
-        # self.make_button(shige_tr.option, self.option_button_click, self.last_text_bar)
         self.make_button(
             " ⚙️ ", self.option_button_click, self.last_text_bar,
             tooltip_text="⚙️Option")
 
-
-        if True:
-            self.make_button(
-                "❔️", self.question_button_click, self.last_text_bar,
-                tooltip_text="📖Wiki")
+        self.make_button(
+            "❔️", self.question_button_click, self.last_text_bar,
+            tooltip_text="📖Wiki")
 
         config = mw.addonManager.getConfig(__name__)
 
@@ -918,6 +1050,7 @@ setInterval(findAndClickButton, 2000);
         config["now_AI_type"] = theme
         mw.addonManager.writeConfig(__name__, config)
         PYGsound(THEME_CHANGE)
+        self._update_accent(theme)
         self.load_url()
         self._rebuild_prompt_toolbar()
         from .update_top_toolbar import change_AI_icon_on_top_tool_bar
@@ -1010,7 +1143,9 @@ setInterval(findAndClickButton, 2000);
 
     def make_menu_button(self, layout: QVBoxLayout):
         self.toolBar = QToolBar()
-        self.toolBar.setStyleSheet("QToolBar { margin: 1px; padding: 1px; }")
+        self.toolBar.setStyleSheet(
+            "QToolBar { margin: 0px; padding: 2px; spacing: 2px; border: none; }"
+        )
         layout.addWidget(self.toolBar)
         layout.setContentsMargins(1, 1, 1, 1)
         self._rebuild_prompt_toolbar()
@@ -1051,29 +1186,57 @@ setInterval(findAndClickButton, 2000);
         self.combo_box.currentIndexChanged.connect(self.save_selection)
         self.combo_box.currentIndexChanged.connect(self.adjust_combo_box_width)
         self.adjust_combo_box_width()
+        acc = getattr(self, '_accent_color', '#10A37F')
+        r, g, b = _hex_to_rgb(acc)
+        self.combo_box.setStyleSheet(
+            f"QComboBox {{ border: 1px solid rgba(128,128,128,0.35); border-radius: 4px; "
+            f"padding: 1px 4px; min-height: 22px; }}"
+            f"QComboBox:hover {{ border-color: rgba({r},{g},{b},0.7); }}"
+        )
         self.toolBar.addWidget(self.combo_box)
     # ｺﾝﾎﾞﾎﾞｯｸｽ ========================
 
-    def make_button(self, button_name, action_function, toolbar:QToolBar, sound=False, tooltip_text=None):
+    def make_button(self, button_name, action_function, toolbar: QToolBar,
+                    sound=False, tooltip_text=None, _accent_btn=False):
         action = QAction(button_name, self)
         button = QPushButton(button_name)
         fm = QFontMetrics(button.font())
         width = fm.horizontalAdvance(button_name)
-        button.setFixedSize(width + 10, 25)
-        # button.setStyleSheet("QPushButton { margin: 1px; padding: 1px; }")
+        button.setFixedSize(width + 14, 26)
         action.triggered.connect(action_function)
         button.clicked.connect(action.trigger)
         if sound is False:
             button.clicked.connect(lambda: PYGsound(SOUND_SELECT))
 
-         
-        custom_style_sheet = "QPushButton { margin: 1px; padding: 1px; }"
+        acc = getattr(self, '_accent_color', '#10A37F')
+        r, g, b = _hex_to_rgb(acc)
+
+        if _accent_btn:
+            ss = (
+                f"QPushButton {{ background-color: {acc}; color: white; border: none; "
+                f"border-radius: 4px; font-weight: bold; }}"
+                f"QPushButton:hover {{ background-color: {_darken(acc)}; }}"
+                f"QPushButton:pressed {{ background-color: {_darken(acc, 0.70)}; }}"
+            )
+        else:
+            ss = (
+                f"QPushButton {{ border: 1px solid rgba(128,128,128,0.35); border-radius: 4px; }}"
+                f"QPushButton:hover {{ border-color: rgba({r},{g},{b},0.7); "
+                f"background-color: rgba({r},{g},{b},0.10); }}"
+                f"QPushButton:pressed {{ background-color: rgba({r},{g},{b},0.22); }}"
+            )
+
         if tooltip_text:
             button.setToolTip(tooltip_text)
-            custom_style_sheet += qtip_style
+            ss += (
+                f"QToolTip {{ border: 1px solid rgba({r},{g},{b},0.65); "
+                f"padding: 4px 7px; font-size: 12px; "
+                f"background-color: #1c1c1e; color: #f5f5f7; border-radius: 4px; }}"
+            )
 
-        button.setStyleSheet(custom_style_sheet)
+        button.setStyleSheet(ss)
         toolbar.addWidget(button)
+        return button
 
     # def make_button(self, button_name, action_function, toolbar, sound=False):
     #     action = QAction(button_name, self)
@@ -1109,7 +1272,7 @@ setInterval(findAndClickButton, 2000);
             button.setText(b_name[i])
             fm = QFontMetrics(button.font())
             width = fm.horizontalAdvance(b_name[i])
-            button.setFixedSize(width + 10, 25)
+            button.setFixedSize(width + 14, 26)
             i += 1
     # ---------------------------------------------------
 
@@ -1681,6 +1844,40 @@ setInterval(findAndClickButton, 2000);
         }})();
         """
         self.webview.page().runJavaScript(js)
+
+    def _update_accent(self, ai_type: str) -> None:
+        self._accent_color = _AI_ACCENT.get(ai_type, "#10A37F")
+        acc = self._accent_color
+        r, g, b = _hex_to_rgb(acc)
+
+        if hasattr(self, '_accent_bar') and self._accent_bar:
+            self._accent_bar.setStyleSheet(f"background: {acc};")
+
+        if hasattr(self, '_spinner') and self._spinner:
+            self._spinner.set_accent(
+                acc, self._AI_DISPLAY_NAMES.get(ai_type, "Loading…"))
+
+        if hasattr(self, '_ai_btn') and self._ai_btn:
+            ai_short = _AI_SHORT_NAMES.get(ai_type, "AI")
+            self._ai_btn.setText(ai_short)
+            fm = QFontMetrics(self._ai_btn.font())
+            self._ai_btn.setFixedSize(fm.horizontalAdvance(ai_short) + 14, 26)
+            self._ai_btn.setStyleSheet(
+                f"QPushButton {{ background-color: {acc}; color: white; border: none; "
+                f"border-radius: 4px; font-weight: bold; }}"
+                f"QPushButton:hover {{ background-color: {_darken(acc)}; }}"
+                f"QPushButton:pressed {{ background-color: {_darken(acc, 0.70)}; }}"
+                f"QToolTip {{ border: 1px solid rgba({r},{g},{b},0.65); "
+                f"padding: 4px 7px; font-size: 12px; "
+                f"background-color: #1c1c1e; color: #f5f5f7; border-radius: 4px; }}"
+            )
+
+        if hasattr(self, 'last_text_edit') and self.last_text_edit:
+            self.last_text_edit.setStyleSheet(
+                f"QLineEdit {{ border: 1px solid rgba(128,128,128,0.35); border-radius: 4px; "
+                f"padding: 2px 5px; font-size: 12px; }}"
+                f"QLineEdit:focus {{ border-color: rgba({r},{g},{b},0.8); }}"
+            )
 
     def _rebuild_prompt_toolbar(self) -> None:
         config = mw.addonManager.getConfig(__name__)
