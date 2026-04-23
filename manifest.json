@@ -1,0 +1,9 @@
+{
+    "name": "Anki Terminator V2 by Shige",
+    "package": "Anki Terminator V2 by Shige",
+    "author": "Shigeyuki",
+    "homepage": "patreon.com/Shigeyuki",
+    "conflicts": [
+        "1428126516"
+    ]
+}

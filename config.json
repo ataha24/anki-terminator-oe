@@ -1,0 +1,56 @@
+{
+    "ChatGPT_URL" :{ "Chat_GPT":"https://chat.openai.com/chat/",
+                    "Bing_Chat":"https://www.bing.com/search?q=Bing+AI&showconv=1&FORM=hpcodx",
+                    "Google_Bard" : "https://gemini.google.com/app",
+                    "DeepSeek": "https://chat.deepseek.com/",
+                    "Open_Evidence": "https://www.openevidence.com"
+                },
+
+    "Custom_Ai" : false,
+    "Custom_AI_URL" : "",
+
+    "now_AI_type" : "Chat_GPT",
+
+    "button_name" : ["default","more","baby",
+                    "origin","joke","history",
+                    "synonym","mnemonic"],
+
+    "random_prompt": ["what is {}? Please tell me in detail."],
+
+    "exclusion_list" :["Image Occlusion","","","","","","",""],
+
+    "Priority_Fields_list" :["","","","","","","",""],
+    "Priority_tag_list" : ["","","","","","","",""],
+
+    "more_info" : ["Please explain more about {}."],
+    "baby_explanation" : ["What is {}? Explain like I'm 5 years old."],
+    "word_origin" : ["What is the origin of {}?"],
+    "make_joke" : ["Tell me funny jokes for {}."],
+    "history" : ["What is the history of {}?"],
+    "synonym" : ["What are the synonyms for {}?"],
+
+    "is_i_am_studying" : true,
+    "i_am_studying":["I am studying {}. "],
+
+    "Enter_Short_cut_Key" : "Ctrl+H",
+    "AI_shortcut_key" : "Ctrl+G",
+
+    "change_Language":true,
+    "language" : ["Please explain in {}."],
+    "mnemonic" : ["Please make {} mnemonic."],
+
+    "start_up" : true,
+    "add_gpt_to_the_top_toolbar" : true,
+
+    "submit_text" : false,
+
+    "hide_the_sidebar_on_the_answer_screen" : false,
+
+    "EffectVolume" : 0.5,
+
+    "last_tab": 0,
+
+    "is_change_log_2024_06_05": false
+
+
+}

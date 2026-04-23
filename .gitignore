@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+*.pyo
+user_files/
+meta.json
+.DS_Store
