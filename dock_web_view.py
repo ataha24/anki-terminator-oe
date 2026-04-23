@@ -1091,8 +1091,6 @@ setInterval(findAndClickButton, 2000);
     def update_button_names(self):
         # 最新の設定を取得
         config = mw.addonManager.getConfig(__name__)
-        if config.get("now_AI_type") == OPEN_EVIDENCE:
-            return
         b_name, button_function_pairs = self.get_button_function_pairs(config)
 
         # ﾎﾞﾀﾝの名前を更新
@@ -1684,45 +1682,24 @@ setInterval(findAndClickButton, 2000);
         """
         self.webview.page().runJavaScript(js)
 
-    def oe_preset_function(self, preset: dict) -> None:
-        """Send an OE medical preset query using the current card text."""
-        card_text = ""
-        if self.last_card is not None:
-            card_text = _oe_extract_card_text(self.last_card)
-        elif self.last_text:
-            card_text = self.last_text
-        query = preset["template"].format(card_text) + _OE_SUFFIX
-        self.handle_load_finished(query, click=True)
-
     def _rebuild_prompt_toolbar(self) -> None:
-        """Rebuild the prompt toolbar buttons for the current AI type."""
         config = mw.addonManager.getConfig(__name__)
-        now_AI_type = config.get("now_AI_type")
         self.toolBar.clear()
         self.combo_box = None
-
-        if now_AI_type == OPEN_EVIDENCE:
-            for preset in OE_PRESETS:
-                self.make_button(
-                    preset["label"],
-                    lambda _, p=preset: self.oe_preset_function(p),
-                    self.toolBar,
-                )
-        else:
-            b_name, button_function_pairs = self.get_button_function_pairs(config)
-            self.make_combo_box(button_function_pairs)
-            buttons = [
-                (b_name[0], lambda: self.more_function("random_prompt")),
-                (b_name[1], lambda: self.more_function("more_info")),
-                (b_name[2], lambda: self.more_function("baby_explanation")),
-                (b_name[3], lambda: self.more_function("word_origin")),
-                (b_name[4], lambda: self.more_function("make_joke")),
-                (b_name[5], lambda: self.more_function("history")),
-                (b_name[6], lambda: self.more_function("synonym")),
-                (b_name[7], lambda: self.more_function("mnemonic")),
-            ]
-            for button_name, action_function in buttons:
-                self.make_button(button_name, action_function, self.toolBar)
+        b_name, button_function_pairs = self.get_button_function_pairs(config)
+        self.make_combo_box(button_function_pairs)
+        buttons = [
+            (b_name[0], lambda: self.more_function("random_prompt")),
+            (b_name[1], lambda: self.more_function("more_info")),
+            (b_name[2], lambda: self.more_function("baby_explanation")),
+            (b_name[3], lambda: self.more_function("word_origin")),
+            (b_name[4], lambda: self.more_function("make_joke")),
+            (b_name[5], lambda: self.more_function("history")),
+            (b_name[6], lambda: self.more_function("synonym")),
+            (b_name[7], lambda: self.more_function("mnemonic")),
+        ]
+        for button_name, action_function in buttons:
+            self.make_button(button_name, action_function, self.toolBar)
 
     # ─────────────────────────────────────────────────────────────────────────
 
