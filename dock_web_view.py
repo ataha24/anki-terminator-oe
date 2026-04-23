@@ -529,6 +529,8 @@ jgs    \  `-"`      `"-`   /
         self.context_action = None
         self.loading = False
         self.last_card_note = None
+        self._oe_last_card_id = None
+        self._oe_pending_query = None
 
         self.setWindowTitle(name)
         self.setMinimumSize(QSize(300, 300))
@@ -892,6 +894,11 @@ setInterval(findAndClickButton, 2000);
     def on_load_finished(self):
         self.loading = False
         self.show_webview()
+        if self._oe_pending_query:
+            query = self._oe_pending_query
+            self._oe_pending_query = None
+            # CSS injection fires at 800 ms (inject_javascript); query fires after that
+            QTimer.singleShot(1400, lambda: self._oe_inject_query(query))
 
     def hide_webview(self):
         if hasattr(self, '_spinner'):
@@ -1194,6 +1201,33 @@ setInterval(findAndClickButton, 2000);
             f"QComboBox:hover {{ border-color: rgba({r},{g},{b},0.7); }}"
         )
         self.toolBar.addWidget(self.combo_box)
+
+    def make_oe_combo_box(self):
+        """Combo box for OE mode — shows the 5 medical presets, saves oe_default_preset_index."""
+        config = mw.addonManager.getConfig(__name__)
+        current_idx = min(config.get("oe_default_preset_index", 0), len(OE_PRESETS) - 1)
+        self.combo_box = QComboBox()
+        for i, preset in enumerate(OE_PRESETS):
+            self.combo_box.addItem(preset["label"], i)
+        self.combo_box.setCurrentIndex(current_idx)
+        self.combo_box.currentIndexChanged.connect(self._save_oe_combo_selection)
+        self.combo_box.currentIndexChanged.connect(self.adjust_combo_box_width)
+        self.adjust_combo_box_width()
+        acc = getattr(self, '_accent_color', '#1A6EFF')
+        r, g, b = _hex_to_rgb(acc)
+        self.combo_box.setStyleSheet(
+            f"QComboBox {{ border: 1px solid rgba(128,128,128,0.35); border-radius: 4px; "
+            f"padding: 1px 4px; min-height: 22px; }}"
+            f"QComboBox:hover {{ border-color: rgba({r},{g},{b},0.7); }}"
+        )
+        self.toolBar.addWidget(self.combo_box)
+
+    def _save_oe_combo_selection(self):
+        if not self.combo_box:
+            return
+        config = mw.addonManager.getConfig(__name__)
+        config["oe_default_preset_index"] = self.combo_box.currentData()
+        mw.addonManager.writeConfig(__name__, config)
     # ｺﾝﾎﾞﾎﾞｯｸｽ ========================
 
     def make_button(self, button_name, action_function, toolbar: QToolBar,
@@ -1396,8 +1430,19 @@ setInterval(findAndClickButton, 2000);
         if config.get("now_AI_type") == OPEN_EVIDENCE:
             card_text = _oe_extract_card_text(card)
             self.set_last_text(card_text)
-            query = OE_PRESETS[0]["template"].format(card_text) + _OE_SUFFIX
-            self.handle_load_finished(query)
+            idx = min(config.get("oe_default_preset_index", 0), len(OE_PRESETS) - 1)
+            query = OE_PRESETS[idx]["template"].format(card_text) + _OE_SUFFIX
+            if (self._oe_last_card_id is not None
+                    and card is not None
+                    and card.id != self._oe_last_card_id):
+                # New card → reload OE to start a fresh chat, then fire query
+                self._oe_pending_query = query
+                self.webview.load(QUrl(OPEN_EVIDENCE_URL))
+            else:
+                # Same card or first card → send as follow-up in existing chat
+                self.handle_load_finished(query)
+            if card is not None:
+                self._oe_last_card_id = card.id
             return
 
         first_field_name = self.get_priority_field_name(config, note_type)
@@ -1883,8 +1928,15 @@ setInterval(findAndClickButton, 2000);
         config = mw.addonManager.getConfig(__name__)
         self.toolBar.clear()
         self.combo_box = None
-        b_name, button_function_pairs = self.get_button_function_pairs(config)
-        self.make_combo_box(button_function_pairs)
+
+        if config.get("now_AI_type") == OPEN_EVIDENCE:
+            # OE mode: combo shows the 5 medical presets so the user can pick their default
+            self.make_oe_combo_box()
+        else:
+            b_name, button_function_pairs = self.get_button_function_pairs(config)
+            self.make_combo_box(button_function_pairs)
+
+        b_name, _ = self.get_button_function_pairs(config)
         buttons = [
             (b_name[0], lambda: self.more_function("random_prompt")),
             (b_name[1], lambda: self.more_function("more_info")),
