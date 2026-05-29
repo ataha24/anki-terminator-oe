@@ -1,6 +1,20 @@
 # Anki Terminator + Open Evidence
 
-Anki Terminator V2 by Shige, with Open Evidence integrated as a selectable AI mode.
+Built on [Anki Terminator V2](http://patreon.com/Shigeyuki) by Shigeyuki.
+
+---
+
+## Contributors
+
+**Alaa Taha** and **Jerry Shen** extended this fork with Open Evidence integration and a full UI overhaul:
+
+- Integrated **Open Evidence** as a native AI mode with 5 one-click medical preset queries
+- Per-card chat sessions — each card gets its own conversation history
+- Configurable default preset via combo box
+- Visual overhaul: accent colours, animated loading spinner, AI name button, accent bar
+- Streamlined toolbar shared across all AI modes
+
+---
 
 ## What's included
 
@@ -9,6 +23,10 @@ Anki Terminator V2 by Shige, with Open Evidence integrated as a selectable AI mo
 
 ## Installation
 
+**Option A — Direct install (easiest):**
+Download the `.ankiaddon` file from the [releases](../../releases) section (or the repo root), then double-click it. Anki installs it automatically.
+
+**Option B — Manual:**
 1. Quit Anki if it's running.
 2. Find your Anki addons folder:
    - **Mac**: `~/Library/Application Support/Anki2/addons21/`
