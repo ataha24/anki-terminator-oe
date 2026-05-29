@@ -22,7 +22,7 @@ CHANGE_LOG_DAY = "2026-02-15" #🟢
 
 POKEBALL_PATH = r"popup_icon.png"
 
-THE_ADDON_NAME = "🤖Anki Terminator (Created by Shige)" #🟢
+THE_ADDON_NAME = "🤖Anki Terminator + Open Evidence | Original by Shige | OE fork by Alaa Taha & Jerry Shen" #🟢
 
 REPORT_URL = "https://shigeyukey.github.io/shige-addons-wiki/AnkiTerminator/anki_terminator_00.html#report-a-problem-or-request"
 

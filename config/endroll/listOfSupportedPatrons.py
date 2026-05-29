@@ -13,6 +13,12 @@ def clink(name, text,url=None):
 credits = """
 <br><br><br>
 <b>[ CREDIT ]</b>
+<br><br>
+<b>Open Evidence Integration &amp; UI Overhaul</b>
+<br>
+Alaa Taha &amp; Jerry Shen
+<br><br>
+<i>OE presets · per-card chat · accent bar · animated spinner</i>
 <br><br><br>
 """.replace('\n', '<br>')
 
@@ -79,7 +85,10 @@ thankYou = ("""
 <br><br><br>
 <h3>%s</h3><br>""" % ADDON_NAME +
 clink(f"{CREATE_OR_FIXED}", "Shigeyuki","https://www.patreon.com/Shigeyuki")+
-"""
+"""<br>
+<b>Open Evidence fork by</b><br>
+Alaa Taha &amp; Jerry Shen<br>
+<a href="https://github.com/ataha24/anki-terminator-oe">github.com/ataha24/anki-terminator-oe</a>
 <br>
 Thank you very much!
 <br><br><br><br>

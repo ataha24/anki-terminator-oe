@@ -1,8 +1,8 @@
 {
-    "name": "Anki Terminator V2 by Shige",
+    "name": "Anki Terminator + Open Evidence (fork)",
     "package": "Anki Terminator V2 by Shige",
-    "author": "Shigeyuki",
-    "homepage": "patreon.com/Shigeyuki",
+    "author": "Shigeyuki (original) | Open Evidence fork by Alaa Taha & Jerry Shen",
+    "homepage": "github.com/ataha24/anki-terminator-oe",
     "conflicts": [
         "1428126516"
     ]
