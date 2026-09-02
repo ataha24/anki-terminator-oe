@@ -20,6 +20,8 @@ Built on [Anki Terminator V2](http://patreon.com/Shigeyuki) by Shigeyuki.
 
 - All original Anki Terminator AI modes (ChatGPT, Claude, Perplexity, DeepSeek, Grok, DuckDuckGo AI, etc.)
 - **Open Evidence** — medical AI integrated directly into the sidebar, with 5 one-click preset queries (Mechanism, Board Pearl, Distinguish, Presentation, Management)
+  
+<img width="1710" height="1000" alt="Screenshot 2026-09-02 at 12 48 00 AM" src="https://github.com/user-attachments/assets/dfaf99c9-2043-46a4-9b14-9b9f4637debf" />
 
 ## Installation
 
